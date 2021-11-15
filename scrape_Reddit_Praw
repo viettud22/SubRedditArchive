@@ -1,0 +1,121 @@
+import math
+import pandas as pd
+import json
+import requests
+import itertools
+from requests.api import head
+import numpy as np
+import time
+from datetime import datetime, timedelta
+import praw
+import csv
+
+def make_request(uri, max_retries = 5):
+    def fire_away(uri):
+        response = requests.get(uri)
+        assert response.status_code == 200
+        return json.loads(response.content)
+    current_tries = 1
+    while current_tries < max_retries:
+        try:
+            time.sleep(1)
+            response = fire_away(uri)
+            return response
+        except:
+            time.sleep(1)
+            current_tries += 1
+    return fire_away(uri)
+
+def pull_posts_for(subreddit, start_at, end_at):
+    def map_posts(posts):
+        return list(map(lambda post: {
+            'id': post['id'],
+            'created_utc': post['created_utc'],
+            'prefix': 't4_'
+        }, posts))
+    
+    SIZE = 100
+    URI_TEMPLATE = r'https://api.pushshift.io/reddit/search/submission?subreddit={}&after={}&before={}&size={}'
+    
+    post_collections = map_posts( \
+        make_request( \
+            URI_TEMPLATE.format( \
+                subreddit, start_at, end_at, SIZE))['data'])
+    n = len(post_collections)
+    while n == SIZE:
+        last = post_collections[-1]
+        new_start_at = last['created_utc'] - (10)
+        
+        more_posts = map_posts( \
+            make_request( \
+                URI_TEMPLATE.format( \
+                    subreddit, new_start_at, end_at, SIZE))['data'])
+        
+        n = len(more_posts)
+        post_collections.extend(more_posts)
+    return post_collections
+
+#Enter time and subreddit name
+subreddit = 'CryptoCurrency'
+end_at = int(datetime(2021,9,1,0,0).timestamp())
+start_at = int(datetime(2019,8,1,0,0).timestamp())
+posts = pull_posts_for(subreddit, start_at, end_at)
+
+print(len(posts))
+print(len(np.unique([ post['id'] for post in posts ])))
+
+def get_date(submission):
+	time = submission.created
+	return datetime.fromtimestamp(time)
+
+
+reddit = praw.Reddit(client_id = "1GsG6wdFOl38bFdS6ZKgQg" ,                 
+                     client_secret = "WYRuRctsqEoPI_PwciE1IR2TnMJZvQ" ,
+                     user_agent = "Testing_api")
+
+
+posts_from_reddit = []
+comments_from_reddit = []
+df = { "Date":[],
+        "Title":[],
+        "Sender":[], 
+        "Replier":[],
+        "url":[], 
+        "Number of comments": [], 
+        "Conversation":[],
+        "Score":[],
+        }
+uniqueposts = np.unique([ post['id'] for post in posts ])
+
+for submission_id in uniqueposts:
+    submission = reddit.submission(id=submission_id)
+    if not submission.stickied:
+        conversation = submission.selftext
+        if(conversation != "[removed]" and  conversation != "[deleted]" ):
+            df['Date'].append(get_date(submission))
+            print(get_date(submission))
+            df['Title'].append(submission.title)
+            df['Conversation'].append(conversation)
+            df['Sender'].append(submission.author)
+            df['Replier'].append('')
+            df['Score'].append(submission.score)
+            df['url'].append(submission.url) 
+            df['Number of comments'].append(submission.num_comments)
+            # Get comments for each post
+            submission.comments.replace_more(limit=0)
+            if (submission.num_comments >0):
+                for comment in submission.comments.list():
+                    df['Date'].append(get_date(submission))
+                    df['Title'].append("")
+                    df['Score'].append(comment.score)
+                    df['Conversation'].append(comment.body)
+                    df['Sender'].append("")
+                    df['Replier'].append(comment.author)
+                    df['url'].append("") 
+                    df['Number of comments'].append("")
+    
+dataf = pd.DataFrame(df)
+dataf.to_csv('Cryto2020.csv', header=True, index=False)
+
+
+

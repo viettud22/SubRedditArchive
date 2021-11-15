@@ -1,0 +1,19 @@
+library(RedditExtractoR)
+library(dplyr)
+library(magrittr)
+
+i <- 1
+min_date <- as.Date("2021/01/01")
+max_date <- as.Date("2021/01/30")
+
+Post_min <- min_date +1
+
+while(Post_min > min_date){
+  Data_out<-get_reddit(search_terms = NA, regex_filter = "", subreddit = "CryptoCurrency",cn_threshold = 0, page_threshold = i, sort_by = "new",wait_time = 2)%>%
+    mutate(date = as.Date(date, format = "%d.%m.%Y"))
+  
+  i <- i+1
+  Post_min <- min(Data_out$date)
+}
+
+Data_out %<>% filter(date >=min_date  & date <=max_date)
