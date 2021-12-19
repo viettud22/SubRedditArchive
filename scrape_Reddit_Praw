@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 import praw
 import csv
 
+# The following code are adopted from:
+# https://medium.com/@pasdan/how-to-scrap-reddit-using-pushshift-io-via-python-a3ebcc9b83f4
+
 def make_request(uri, max_retries = 5):
     def fire_away(uri):
         response = requests.get(uri)
@@ -56,7 +59,7 @@ def pull_posts_for(subreddit, start_at, end_at):
     return post_collections
 
 #Enter time and subreddit name
-subreddit = 'CryptoCurrency'
+subreddit = 'Subreddit_Name'
 end_at = int(datetime(2021,9,1,0,0).timestamp())
 start_at = int(datetime(2019,8,1,0,0).timestamp())
 posts = pull_posts_for(subreddit, start_at, end_at)
@@ -115,7 +118,7 @@ for submission_id in uniqueposts:
                     df['Number of comments'].append("")
     
 dataf = pd.DataFrame(df)
-dataf.to_csv('Cryto2020.csv', header=True, index=False)
+dataf.to_csv('Name.csv', header=True, index=False)
 
 
 
